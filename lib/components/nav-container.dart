@@ -1,144 +1,91 @@
-// Flutter Parallax Background Navigation Demo
-// @author Kenneth Reilly <kenneth@innovationgroup.tech>
-// Copyright 2019 The Innovation Group - MIT License
-
-import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
-import '../services/navigation-bus.dart';
+
 import './nav-route-view.dart';
 import './nav-tab-icon.dart';
 
 class NavContainer extends StatefulWidget {
+  NavContainer({
+    required this.children,
+    required this.animationSink,
+  });
 
-    NavContainer({ Key key, @required this.children }) : super(key: key);
+  final List<String> children;
+  final StreamSink<Animation<double>> animationSink;
 
-	final List<String> children;
-
-    @override
-    _NavContainerState createState() => _NavContainerState();
+  @override
+  _NavContainerState createState() => _NavContainerState();
 }
 
 class _NavContainerState extends State<NavContainer> with SingleTickerProviderStateMixin {
+  TabController? _controller;
+  late Animation<double> _animation;
 
-	TabController _controller;
+  List<Tab> get _tabs => Iterable.generate(widget.children.length, (index) => Tab(
+    icon: NavTabIcon(index: index, name: widget.children[index], animation: _animation),
+  )).toList();
 
-	Animation _animation;
+  List<Widget> get _routes {
+    final style = Theme.of(context).textTheme.displaySmall!.copyWith(color: Colors.white);
 
-	List<Tab> get _tabs {
+    return Iterable.generate(widget.children.length, (index) => NavRouteView(
+      index: index,
+      child: Container(
+        constraints: BoxConstraints.expand(),
+        child: Center(child: Text(widget.children[index], style: style)),
+      ),
+      animation: _animation,
+    )).toList();
+  }
 
-		int _index = 0;
-		Iterable<Tab> _map = widget.children.map<Tab>((String name) {
+  @override
+  void initState() {
+    super.initState();
 
-			Tab _tab = Tab(
-				icon: new NavTabIcon(
-					index: _index,
-					name: name, 
-					animation: _animation
-				),
-			);
+    _controller = TabController(vsync: this, length: widget.children.length);
+    _animation = _controller!.animation!;
+    widget.animationSink.add(_animation);
+  }
 
-			_index++;
-			return _tab;
-		});
-		
-		return _map.toList();
-	}
+  @override
+  void dispose() {
+    super.dispose();
+    _controller?.dispose();
+  }
 
-	List<NavRouteView> get _routes {
-
-		TextStyle style = Theme.of(context).textTheme.display4.copyWith(color: Colors.white);
-
-		int _index = 0;
-		Iterable<NavRouteView> _map = widget.children.map<NavRouteView>((name) { 
-
-			NavRouteView _view = NavRouteView(
-				index: _index, 
-				child: Container( 
-					constraints: BoxConstraints.expand(),
-					child: Center(child: Text(name, style: style)) 
-				), 
-				animation: _animation
-			);
-
-			_index++;
-			return _view;
-		});
-		
-		return _map.toList();
-	}
-
-	@override
-	void initState() {
-
-		super.initState();
-
-		_controller = new TabController(vsync: this, length: widget.children.length);
-		_animation = _controller.animation;
-		NavigationBus.registerTabController(_controller);
-	}
-
-	@override
-	void dispose() {
-
-		super.dispose();
-		_controller.dispose();
-	}
-
-	@override
-	Widget build(BuildContext context) {
-
-		return Stack(
-			children: <Widget> [
-
-				Container(
-					padding: Platform.isAndroid
-						? EdgeInsets.only(bottom: 48)
-						: EdgeInsets.only(bottom: 64),
-					constraints: BoxConstraints.expand(),
-					child: TabBarView(
-						controller: _controller,
-						children: _routes,						
-					),
-				),
-
-				Column(	
-					mainAxisAlignment: MainAxisAlignment.end,
-					crossAxisAlignment: CrossAxisAlignment.stretch,
-					children: [
-						
-						( Platform.isAndroid )
-						
-						? TabBar(
-							indicatorPadding: EdgeInsets.all(1),
-							labelPadding: EdgeInsets.zero,
-							controller: _controller,
-							indicatorWeight: 4,
-							tabs: _tabs
-						)
-
-						: Container( 
-							decoration: BoxDecoration(
-								gradient: LinearGradient(
-									begin: Alignment.topCenter,
-									end: Alignment.bottomCenter,
-									colors: [
-										const Color.fromARGB(8, 16, 32, 16),
-										const Color.fromARGB(192, 32, 16, 32)
-									]
-								)
-							), 
-							child: TabBar(
-
-								indicator: BoxDecoration(),
-								labelPadding: EdgeInsets.only(bottom: 6, top: 4),
-								indicatorPadding: EdgeInsets.only(top: 6, bottom: 12),
-								controller: _controller,
-								tabs: _tabs
-							)
-						)
-					]
-				)
-			]
-		);
-	}
+  @override
+  Widget build(BuildContext context) {
+    return Stack(children: <Widget>[
+      Container(
+        padding: EdgeInsets.only(bottom: 64),
+        constraints: BoxConstraints.expand(),
+        child: TabBarView(
+          controller: _controller,
+          children: _routes,
+        ),
+      ),
+      Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color.fromARGB(8, 16, 32, 16), Color.fromARGB(192, 32, 16, 32)]
+              )
+            ),
+            child: TabBar(
+              indicator: BoxDecoration(),
+              labelPadding: EdgeInsets.only(bottom: 6, top: 4),
+              indicatorPadding: EdgeInsets.only(top: 6, bottom: 12),
+              controller: _controller,
+              tabs: _tabs
+            )
+          ),
+        ]
+      )
+    ]);
+  }
 }
